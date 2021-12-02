@@ -48,9 +48,9 @@ namespace ApiProject.Controllers
                 return Unauthorized(loginResult.Message);
             }
 
-            CreateToken(loginResult.User);
+            
 
-            return Ok();
+            return Ok(CreateToken(loginResult.User));
         }
 
         [HttpPost]
@@ -78,7 +78,7 @@ namespace ApiProject.Controllers
             var code = _userRepasitory.GetSmsCode(PhoneNumber);
 
             //send sms
-            return Ok();
+            return Ok(code);
         }
 
         private LoginResultDto CreateToken(User user)
