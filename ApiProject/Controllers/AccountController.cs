@@ -42,6 +42,27 @@ namespace ApiProject.Controllers
         [HttpPost]
         public IActionResult Post(string userName, string password)
         {
+            return Ok(CreateToken(userName, password));
+        }
+
+        [HttpPost]
+        [Route("RefreshToken")]
+        public IActionResult RefreshToken(string refreshToken)
+        {
+            var userToken = _userTokenRepasitory.FindRefreshToken(refreshToken);
+            if (userToken == null)
+            {
+                return Unauthorized();
+            }
+            if (userToken.RefreshTokenExpier < DateTime.Now)
+            {
+                return Unauthorized("Token Expier");
+            }
+            return Ok(CreateToken(null, null));
+        }
+
+        private LoginResultDto CreateToken(string userName, string password)
+        {
             if (_userRepasitory.ValidateUser(userName, password))
             {
                 var user = _userRepasitory.GetUser(Guid.Parse("76bea2ad-726e-40c3-a59c-6b56515fa46f"));
@@ -68,19 +89,29 @@ namespace ApiProject.Controllers
 
 
                 var JWTToken = new JwtSecurityTokenHandler().WriteToken(token);
+                var refreshToken = Guid.NewGuid();
+
 
                 var tokenHash = SecurityHelper.GetSHa256Hash(JWTToken);
+                var refreshTokenHash = SecurityHelper.GetSHa256Hash(refreshToken.ToString());
+
                 _userTokenRepasitory.SaveToken(new UserToken()
                 {
                     MobileModel = "IPone SX",
                     User = user,
                     TokenExpier = tokenExpier,
-                    TokenHash = tokenHash
+                    TokenHash = tokenHash,
+                    RefreshToken = refreshTokenHash,
+                    RefreshTokenExpier = DateTime.Now.AddDays(30)
                 });
 
-                return Ok(JWTToken);
+                return new LoginResultDto()
+                {
+                    Token = JWTToken,
+                    RefreshToken = refreshToken.ToString()
+                };
             }
-            return Unauthorized();
+            return new LoginResultDto();
         }
     }
 }
