@@ -40,9 +40,17 @@ namespace ApiProject.Controllers
         /// <param name="password">رمز عبور</param>
         /// <returns></returns>
         [HttpPost]
-        public IActionResult Post(string userName, string password)
+        public IActionResult Post(string PhoneNumber, string SmsCode)
         {
-            return Ok(CreateToken(userName, password));
+            var loginResult = _userRepasitory.Login(PhoneNumber, SmsCode);
+            if (!loginResult.IsSuccess)
+            {
+                return Unauthorized(loginResult.Message);
+            }
+
+            CreateToken(loginResult.User);
+
+            return Ok();
         }
 
         [HttpPost]
@@ -58,60 +66,68 @@ namespace ApiProject.Controllers
             {
                 return Unauthorized("Token Expier");
             }
-            return Ok(CreateToken(null, null));
+            var token = CreateToken(userToken.User);
+            _userTokenRepasitory.DeleteToken(refreshToken);
+            return Ok(token);
         }
 
-        private LoginResultDto CreateToken(string userName, string password)
+        [HttpGet]
+        [Route("GetSmsCode")]
+        public IActionResult GetSms(string PhoneNumber)
         {
-            if (_userRepasitory.ValidateUser(userName, password))
-            {
-                var user = _userRepasitory.GetUser(Guid.Parse("76bea2ad-726e-40c3-a59c-6b56515fa46f"));
+            var code = _userRepasitory.GetSmsCode(PhoneNumber);
 
-                var claims = new List<Claim>()
+            //send sms
+            return Ok();
+        }
+
+        private LoginResultDto CreateToken(User user)
+        {
+
+ 
+            var claims = new List<Claim>()
                 {
                     new Claim("UserId",user.Id.ToString()),
-                    new Claim("Name",user.Name),
+                    new Claim("Name",user.Name??""),
                 };
 
-                var key = Configuration["JWTConfig:key"];
-                var secretKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(key));
-                var credentials = new SigningCredentials(secretKey, SecurityAlgorithms.HmacSha256);
-                var tokenExpier = DateTime.Now.AddDays(2);
+            var key = Configuration["JWTConfig:key"];
+            var secretKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(key));
+            var credentials = new SigningCredentials(secretKey, SecurityAlgorithms.HmacSha256);
+            var tokenExpier = DateTime.Now.AddDays(2);
 
-                var token = new JwtSecurityToken(
-                    issuer: Configuration["JWTConfig:issuer"],
-                    audience: Configuration["JWTConfig:audience"],
-                    expires: tokenExpier,
-                    notBefore: DateTime.Now,
-                    claims: claims,
-                    signingCredentials: credentials
-                    );
-
-
-                var JWTToken = new JwtSecurityTokenHandler().WriteToken(token);
-                var refreshToken = Guid.NewGuid();
+            var token = new JwtSecurityToken(
+                issuer: Configuration["JWTConfig:issuer"],
+                audience: Configuration["JWTConfig:audience"],
+                expires: tokenExpier,
+                notBefore: DateTime.Now,
+                claims: claims,
+                signingCredentials: credentials
+                );
 
 
-                var tokenHash = SecurityHelper.GetSHa256Hash(JWTToken);
-                var refreshTokenHash = SecurityHelper.GetSHa256Hash(refreshToken.ToString());
+            var JWTToken = new JwtSecurityTokenHandler().WriteToken(token);
+            var refreshToken = Guid.NewGuid();
 
-                _userTokenRepasitory.SaveToken(new UserToken()
-                {
-                    MobileModel = "IPone SX",
-                    User = user,
-                    TokenExpier = tokenExpier,
-                    TokenHash = tokenHash,
-                    RefreshToken = refreshTokenHash,
-                    RefreshTokenExpier = DateTime.Now.AddDays(30)
-                });
 
-                return new LoginResultDto()
-                {
-                    Token = JWTToken,
-                    RefreshToken = refreshToken.ToString()
-                };
-            }
-            return new LoginResultDto();
+            var tokenHash = SecurityHelper.GetSHa256Hash(JWTToken);
+            var refreshTokenHash = SecurityHelper.GetSHa256Hash(refreshToken.ToString());
+
+            _userTokenRepasitory.SaveToken(new UserToken()
+            {
+                MobileModel = "IPone SX",
+                User = user,
+                TokenExpier = tokenExpier,
+                TokenHash = tokenHash,
+                RefreshToken = refreshTokenHash,
+                RefreshTokenExpier = DateTime.Now.AddDays(30)
+            });
+
+            return new LoginResultDto()
+            {
+                Token = JWTToken,
+                RefreshToken = refreshToken.ToString()
+            };
         }
     }
 }

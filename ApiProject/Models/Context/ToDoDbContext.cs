@@ -13,7 +13,8 @@ namespace ApiProject.Models.Context
         public DbSet<Category> Categories { get; set; }
         public DbSet<User> Users { get; set; }
         public DbSet<UserToken> UserTokens { get; set; }
- 
+        public DbSet<SmsCode> smsCodes { get; set; }
+
         public ToDoDbContext(DbContextOptions options) : base(options)
         {
         }

@@ -9,7 +9,8 @@ namespace ApiProject.Models.Entity
     {
         public Guid Id { get; set; }
         public string Name { get; set; }
-        public bool IsActive { get; set; } 
+        public bool IsActive { get; set; }
+        public string PhoneNumber { get; set; }
         public ICollection<UserToken> UserTokens { get; set; }
     }
 }
